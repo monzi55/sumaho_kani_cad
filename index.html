@@ -44,11 +44,11 @@
 <header><h1>SumahoKaniCAD <span style="opacity:0.5; font-size: 0.6rem;">Precision v6.0</span></h1></header>
 <div class="main-content">
     <div class="config-bar">
-        <label style="font-size:0.6rem; color:var(--primary); font-weight:bold;">起点(ST1):</label>
-        <div class="form-gp"><label>N</label><input type="number" id="initX" value="100.000" step="0.001"></div>
-        <div class="form-gp"><label>E</label><input type="number" id="initY" value="100.000" step="0.001"></div>
-        <div class="form-gp"><label>H</label><input type="number" id="initZ" value="0.000" step="0.001"></div>
-        <div class="form-gp"><label>方位</label><input type="number" id="initAzi" value="0.0000" step="0.0001"></div>
+        <label style="font-size:0.6rem; color:var(--primary); font-weight:bold;">起点(T1)定数:</label>
+        <div class="form-gp"><label>X</label><input type="text" inputmode="decimal" id="initX" value="100.000"></div>
+        <div class="form-gp"><label>Y</label><input type="text" inputmode="decimal" id="initY" value="100.000"></div>
+        <div class="form-gp"><label>Z</label><input type="text" inputmode="decimal" id="initZ" value="0.000"></div>
+        <div class="form-gp"><label>Azi</label><input type="text" inputmode="decimal" id="initAzi" value="0.0000"></div>
     </div>
     <div class="workspace">
         <div class="sidebar">
@@ -166,7 +166,7 @@
         }
         init() {
             let dragging = false, lx, ly;
-            let initialDistance = 0, initialScale = 1;
+            let lastDist = 0, lastMidX = 0, lastMidY = 0;
             let activePointers = new Map();
 
             const getDistance = (p1, p2) => Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
@@ -177,19 +177,17 @@
                 
                 if (activePointers.size === 1) {
                     dragging = true; lx = e.clientX; ly = e.clientY;
-                } else if (activePointers.size === 2) {
-                    dragging = false; 
-                    const pts = [...activePointers.values()];
-                    initialDistance = getDistance(pts[0], pts[1]);
-                    initialScale = this.sc;
-                }
-                
-                // 点の選択（シングルタップ時のみ）
-                if (activePointers.size === 1) {
+                    // 点の選択（シングルタップ時のみ）
                     const rect = this.cnv.getBoundingClientRect(); const mx = e.clientX-rect.left, my = e.clientY-rect.top;
                     let found = null, minD = 30;
                     this.pts.forEach(p => { if(p.x === undefined) return; const sx = p.y*this.sc+this.ox, sy = -p.x*this.sc+this.oy; const dist = Math.hypot(mx-sx, my-sy); if(dist < minD) { found = p.name; minD = dist; } });
                     if(found) this.select(found);
+                } else if (activePointers.size === 2) {
+                    dragging = false; 
+                    const pts = [...activePointers.values()];
+                    lastDist = getDistance(pts[0], pts[1]);
+                    lastMidX = (pts[0].clientX + pts[1].clientX) / 2;
+                    lastMidY = (pts[0].clientY + pts[1].clientY) / 2;
                 }
             };
 
@@ -202,26 +200,36 @@
                 } else if (activePointers.size === 2) {
                     const pts = [...activePointers.values()];
                     const dist = getDistance(pts[0], pts[1]);
-                    const ratio = dist / initialDistance;
-                    
-                    // ピンチ操作の中心点
                     const midX = (pts[0].clientX + pts[1].clientX) / 2;
                     const midY = (pts[0].clientY + pts[1].clientY) / 2;
-                    const rect = this.cnv.getBoundingClientRect();
-                    const cx = midX - rect.left, cy = midY - rect.top;
+                    
+                    if (lastDist > 0) {
+                        const f = dist / lastDist;
+                        const rect = this.cnv.getBoundingClientRect();
+                        const cx = midX - rect.left, cy = midY - rect.top;
 
-                    const newScale = initialScale * ratio;
-                    const f = newScale / this.sc;
-                    this.ox = cx - (cx - this.ox) * f;
-                    this.oy = cy - (cy - this.oy) * f;
-                    this.sc = newScale;
-                    this.draw();
+                        // ピンチ中に指がスライドした分の平行移動
+                        this.ox += (midX - lastMidX);
+                        this.oy += (midY - lastMidY);
+
+                        // ズーム
+                        this.ox = cx - (cx - this.ox) * f;
+                        this.oy = cy - (cy - this.oy) * f;
+                        this.sc *= f;
+                        this.draw();
+                    }
+                    lastDist = dist; lastMidX = midX; lastMidY = midY;
                 }
             };
 
             this.cnv.onpointerup = (e) => {
                 activePointers.delete(e.pointerId);
-                if (activePointers.size < 2) initialDistance = 0;
+                if (activePointers.size < 2) lastDist = 0;
+                if (activePointers.size === 1) {
+                    const remaining = [...activePointers.values()][0];
+                    lx = remaining.clientX; ly = remaining.clientY;
+                    dragging = true;
+                }
                 if (activePointers.size === 0) dragging = false;
             };
             this.cnv.onpointercancel = this.cnv.onpointerup;
@@ -235,7 +243,9 @@
             };
         }
         zoomRelative(f) {
-            const cx = this.cnv.width / 2, cy = this.cnv.height / 2;
+            const rect = this.cnv.getBoundingClientRect();
+            // Androidブラウザ等の解像度差異を吸収するため、物理サイズから正確な中心を取得
+            const cx = rect.width / 2, cy = rect.height / 2;
             this.ox = cx - (cx - this.ox) * f;
             this.oy = cy - (cy - this.oy) * f;
             this.sc *= f;
