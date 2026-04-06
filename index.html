@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>SumahoKaniCAD - Pro Elite v6</title>
+    <title>スマホ簡易ＣＡＤ - Pro Elite v6</title>
     <style>
         :root {
             --primary: #00e5ff; --bg: #0a0e14; --surface: #161c24; --text: #e1e4e8;
@@ -41,14 +41,14 @@
     </style>
 </head>
 <body>
-<header><h1>SumahoKaniCAD <span style="opacity:0.5; font-size: 0.6rem;">Precision v6.0</span></h1></header>
+<header><h1>スマホ簡易ＣＡＤ <span style="opacity:0.5; font-size: 0.6rem;">Precision v6.0</span></h1></header>
 <div class="main-content">
     <div class="config-bar">
-        <label style="font-size:0.6rem; color:var(--primary); font-weight:bold;">起点(T1)定数:</label>
-        <div class="form-gp"><label>X</label><input type="text" inputmode="decimal" id="initX" value="100.000"></div>
-        <div class="form-gp"><label>Y</label><input type="text" inputmode="decimal" id="initY" value="100.000"></div>
-        <div class="form-gp"><label>Z</label><input type="text" inputmode="decimal" id="initZ" value="0.000"></div>
-        <div class="form-gp"><label>Azi</label><input type="text" inputmode="decimal" id="initAzi" value="0.0000"></div>
+        <label style="font-size:0.6rem; color:var(--primary); font-weight:bold;">起点定数:</label>
+        <div class="form-gp"><label>X</label><input type="text" id="initX" value="100.000"></div>
+        <div class="form-gp"><label>Y</label><input type="text" id="initY" value="100.000"></div>
+        <div class="form-gp"><label>Z</label><input type="text" id="initZ" value="0.000"></div>
+        <div class="form-gp"><label>Azi</label><input type="text" id="initAzi" value="0.0000"></div>
     </div>
     <div class="workspace">
         <div class="sidebar">
@@ -276,7 +276,7 @@
         if (!eng.pts.size) return alert("データがありません");
         
         // SIMAファイル構成の構築 (Z00, Z01, A99を追加)
-        let s = "G00,SumahoKaniCAD\r\n";
+        let s = "G00,スマホ簡易ＣＡＤ\r\n";
         s += "Z00, /* 座標データ */,\r\n";
         s += "Z01,2,\r\n"; // 座標単位コンマ区切り
         s += "A00,現場データ,1\r\n";
