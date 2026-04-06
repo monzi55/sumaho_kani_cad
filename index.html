@@ -12,6 +12,7 @@
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; overflow: hidden; display: flex; flex-direction: column; }
         header { padding: 0.5rem 1rem; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
         h1 { margin: 0; font-size: 0.85rem; color: var(--primary); font-weight: bold; }
+        .active-input { border: 2px solid var(--primary) !important; box-shadow: 0 0 8px var(--primary); }
         .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
         .config-bar { background: var(--surface); padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
         .form-gp { display: flex; align-items: center; gap: 3px; }
@@ -68,7 +69,10 @@
     </div>
     <div class="workspace">
         <div class="sidebar">
-            <div class="drop-zone" id="dropZone">APAファイルをドロップ</div>
+            <div style="padding: 10px; display: flex; gap: 8px;">
+                <button class="btn-action" id="btnExportSima" style="padding: 6px; font-size: 0.65rem; background: #333; color: #fff; border: 1px solid #555;">SIMA出力</button>
+                <div class="drop-zone" id="dropZone" style="flex:1; margin:0; padding: 5px; font-size: 0.6rem;">APAドロップ</div>
+            </div>
             <div class="table-wrap">
                 <table>
                     <colgroup><col width="45"><col width="85"><col width="90"><col width="90"><col width="90"></colgroup>
@@ -76,7 +80,6 @@
                     <tbody id="pTableBody"></tbody>
                 </table>
             </div>
-            <div class="action-bar"><button class="btn-action" id="btnExportSima">SIMAエクスポート</button></div>
         </div>
         <div id="canvasWrapper" class="viewport">
                 <div class="tool-gp-v">
@@ -102,9 +105,9 @@
                         </div>
                     </div>
                     <div style="display:flex; gap: 4px; align-items: center; margin-bottom: 8px;">
-                        <input type="text" id="lnP1" placeholder="起点" style="flex:1; width:0; font-size: 0.7rem; padding: 3px; background: #1a222a; color: #fff; border: 1px solid #555;">
+                        <input type="text" id="lnP1" placeholder="起点" readonly style="flex:1; width:0; font-size: 0.7rem; padding: 3px; background: #1a222a; color: #fff; border: 1px solid #555; pointer-events: auto;">
                         <span style="color:#fff;">→</span>
-                        <input type="text" id="lnP2" placeholder="到着" style="flex:1; width:0; font-size: 0.7rem; padding: 3px; background: #1a222a; color: #fff; border: 1px solid #555;">
+                        <input type="text" id="lnP2" placeholder="到着" readonly style="flex:1; width:0; font-size: 0.7rem; padding: 3px; background: #1a222a; color: #fff; border: 1px solid #555; pointer-events: auto;">
                     </div>
                     <button id="btnDrawLine" style="background:var(--primary); color:#000; border:none; padding: 6px; font-weight:bold; cursor:pointer; border-radius: 4px; font-size: 0.75rem;">作図</button>
                 </div>
@@ -280,24 +283,34 @@
             const vs = this.pts.filter(i => i.x !== undefined); if(!vs.length) return;
             let x0=Infinity, x1=-Infinity, y0=Infinity, y1=-Infinity;
             vs.forEach(i=>{ x0=Math.min(x0,i.x); x1=Math.max(x1,i.x); y0=Math.min(y0,i.y); y1=Math.max(y1,i.y); });
-            this.sc = (Math.min(this.cnv.width, this.cnv.height) / (Math.max(x1-x0, y1-y0, 1))) * 0.7;
-            this.ox = this.cnv.width/2 - ((y0+y1)/2)*this.sc; this.oy = this.cnv.height/2 + ((x0+x1)/2)*this.sc;
+            const rangeX = x1 - x0 || 1, rangeY = y1 - y0 || 1;
+            const pad = 40;
+            const sw = this.cnv.width - pad * 2, sh = this.cnv.height - pad * 2;
+            this.sc = Math.min(sw / rangeY, sh / rangeX);
+            this.ox = this.cnv.width/2 - ((y0+y1)/2) * this.sc;
+            this.oy = this.cnv.height/2 + ((x0+x1)/2) * this.sc;
             this.draw();
         }
         select(name) { 
             if (this.curMode === 'line') {
                 if (this.focusInput === 1) {
                     document.getElementById('lnP1').value = name;
-                    this.focusInput = 2;
+                    this.setFocusInput(2);
                 } else {
                     document.getElementById('lnP2').value = name;
-                    this.focusInput = 1;
+                    this.setFocusInput(1);
                 }
             }
             this.selected = name; this.draw(); 
             const tr = document.querySelector(`tr[data-name="${name}"]`); 
             if(tr) tr.scrollIntoView({behavior:'smooth', block:'center'});
             document.querySelectorAll('tr').forEach(r => r.classList.toggle('row-selected', r.getAttribute('data-name') === name));
+        }
+        setFocusInput(idx) {
+            this.focusInput = idx;
+            const i1 = document.getElementById('lnP1'), i2 = document.getElementById('lnP2');
+            i1.classList.toggle('active-input', idx === 1);
+            i2.classList.toggle('active-input', idx === 2);
         }
         init() {
             let dragging = false, lx, ly;
@@ -381,6 +394,9 @@
             document.getElementById('modeSelect').onclick = () => this.setMode('select');
             document.getElementById('modeLine').onclick = () => this.setMode('line');
             
+            document.getElementById('lnP1').onclick = () => this.setFocusInput(1);
+            document.getElementById('lnP2').onclick = () => this.setFocusInput(2);
+            
             document.getElementById('selLineType').onchange = (e) => {
                 document.getElementById('cbOptions').style.display = (e.target.value === 'cb' || e.target.value === 'cb_fence') ? 'flex' : 'none';
             };
@@ -403,8 +419,7 @@
                 
                 document.getElementById('lnP1').value = p2;
                 document.getElementById('lnP2').value = '';
-                this.focusInput = 2;
-                document.getElementById('lnP2').focus();
+                this.setFocusInput(2);
             };
 
             document.getElementById('toggleLabel').onclick = () => {
@@ -435,7 +450,7 @@
             }
             
             if (m === 'line') {
-                this.focusInput = 1;
+                this.setFocusInput(1);
                 // 画面サイズ変更に伴いキャンバスをリサイズ
                 setTimeout(() => this.resize(), 500);
             } else {
@@ -456,7 +471,13 @@
     const eng = new SurveyEngine(), view = new CadView();
     function run(file) {
         eng.reset(parseFloat(document.getElementById('initX').value), parseFloat(document.getElementById('initY').value), parseFloat(document.getElementById('initZ').value), parseFloat(document.getElementById('initAzi').value));
-        const r = new FileReader(); r.onload = (e) => { const res = eng.process(e.target.result); view.pts = res; view.draw(); view.autoFit(); update(res); };
+        const r = new FileReader(); r.onload = (e) => { 
+            const res = eng.process(e.target.result); 
+            view.pts = res; 
+            update(res);
+            view.resize(); // 描画前にサイズ確約
+            setTimeout(() => { view.autoFit(); }, 100); 
+        };
         r.readAsText(file, 'shift-jis');
     }
     function update(items) {
