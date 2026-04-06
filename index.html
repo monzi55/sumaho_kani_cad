@@ -165,17 +165,81 @@
             document.querySelectorAll('tr').forEach(r => r.classList.toggle('row-selected', r.getAttribute('data-name') === name));
         }
         init() {
-            let d=false, lx, ly;
-            this.cnv.onpointerdown=(e)=>{
-                d=true; lx=e.clientX; ly=e.clientY; this.cnv.setPointerCapture(e.pointerId);
-                const rect = this.cnv.getBoundingClientRect(); const mx = e.clientX-rect.left, my = e.clientY-rect.top;
-                let found = null, minD = 25;
-                this.pts.forEach(p => { if(p.x === undefined) return; const sx = p.y*this.sc+this.ox, sy = -p.x*this.sc+this.oy; const dist = Math.hypot(mx-sx, my-sy); if(dist < minD) { found = p.name; minD = dist; } });
-                if(found) this.select(found);
+            let dragging = false, lx, ly;
+            let initialDistance = 0, initialScale = 1;
+            let activePointers = new Map();
+
+            const getDistance = (p1, p2) => Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY);
+
+            this.cnv.onpointerdown = (e) => {
+                activePointers.set(e.pointerId, e);
+                this.cnv.setPointerCapture(e.pointerId);
+                
+                if (activePointers.size === 1) {
+                    dragging = true; lx = e.clientX; ly = e.clientY;
+                } else if (activePointers.size === 2) {
+                    dragging = false; 
+                    const pts = [...activePointers.values()];
+                    initialDistance = getDistance(pts[0], pts[1]);
+                    initialScale = this.sc;
+                }
+                
+                // 点の選択（シングルタップ時のみ）
+                if (activePointers.size === 1) {
+                    const rect = this.cnv.getBoundingClientRect(); const mx = e.clientX-rect.left, my = e.clientY-rect.top;
+                    let found = null, minD = 30;
+                    this.pts.forEach(p => { if(p.x === undefined) return; const sx = p.y*this.sc+this.ox, sy = -p.x*this.sc+this.oy; const dist = Math.hypot(mx-sx, my-sy); if(dist < minD) { found = p.name; minD = dist; } });
+                    if(found) this.select(found);
+                }
             };
-            this.cnv.onpointerup=()=>d=false;
-            this.cnv.onpointermove=(e)=>{ if(!d) return; this.ox+=e.clientX-lx; this.oy+=e.clientY-ly; lx=e.clientX; ly=e.clientY; this.draw(); };
-            this.cnv.onwheel=(e)=>{ e.preventDefault(); const f=e.deltaY>0?0.9:1.1; this.ox=e.offsetX-(e.offsetX-this.ox)*f; this.oy=e.offsetY-(e.offsetY-this.oy)*f; this.sc*=f; this.draw(); };
+
+            this.cnv.onpointermove = (e) => {
+                activePointers.set(e.pointerId, e);
+                if (activePointers.size === 1 && dragging) {
+                    this.ox += e.clientX - lx; this.oy += e.clientY - ly;
+                    lx = e.clientX; ly = e.clientY;
+                    this.draw();
+                } else if (activePointers.size === 2) {
+                    const pts = [...activePointers.values()];
+                    const dist = getDistance(pts[0], pts[1]);
+                    const ratio = dist / initialDistance;
+                    
+                    // ピンチ操作の中心点
+                    const midX = (pts[0].clientX + pts[1].clientX) / 2;
+                    const midY = (pts[0].clientY + pts[1].clientY) / 2;
+                    const rect = this.cnv.getBoundingClientRect();
+                    const cx = midX - rect.left, cy = midY - rect.top;
+
+                    const newScale = initialScale * ratio;
+                    const f = newScale / this.sc;
+                    this.ox = cx - (cx - this.ox) * f;
+                    this.oy = cy - (cy - this.oy) * f;
+                    this.sc = newScale;
+                    this.draw();
+                }
+            };
+
+            this.cnv.onpointerup = (e) => {
+                activePointers.delete(e.pointerId);
+                if (activePointers.size < 2) initialDistance = 0;
+                if (activePointers.size === 0) dragging = false;
+            };
+            this.cnv.onpointercancel = this.cnv.onpointerup;
+
+            this.cnv.onwheel = (e) => {
+                e.preventDefault();
+                const f = e.deltaY > 0 ? 0.9 : 1.1;
+                this.ox = e.offsetX - (e.offsetX - this.ox) * f;
+                this.oy = e.offsetY - (e.offsetY - this.oy) * f;
+                this.sc *= f; this.draw();
+            };
+        }
+        zoomRelative(f) {
+            const cx = this.cnv.width / 2, cy = this.cnv.height / 2;
+            this.ox = cx - (cx - this.ox) * f;
+            this.oy = cy - (cy - this.oy) * f;
+            this.sc *= f;
+            this.draw();
         }
     }
 
@@ -246,8 +310,8 @@
 
     document.getElementById('dropZone').onclick = () => document.getElementById('fileInput').click();
     document.getElementById('fileInput').onchange = (e) => { if(e.target.files[0]) run(e.target.files[0]); };
-    document.getElementById('btnZoomIn').onclick = () => { view.sc *= 1.2; view.draw(); };
-    document.getElementById('btnZoomOut').onclick = () => { view.sc *= 0.8; view.draw(); };
+    document.getElementById('btnZoomIn').onclick = () => view.zoomRelative(1.2);
+    document.getElementById('btnZoomOut').onclick = () => view.zoomRelative(0.8);
     document.getElementById('btnFit').onclick = () => view.autoFit();
     window.ondragover = e => e.preventDefault();
     window.ondrop = e => { e.preventDefault(); if(e.dataTransfer.files[0]) run(e.dataTransfer.files[0]); };
