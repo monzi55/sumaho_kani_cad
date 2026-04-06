@@ -93,7 +93,7 @@
                     </div>
                     <div style="display:flex; gap: 4px; align-items: center; margin-bottom: 8px;">
                         <input type="text" id="lnP1" placeholder="出発点" style="flex:1; width:0; font-size: 0.7rem; padding: 3px; background: #1a222a; color: #fff; border: 1px solid #555;">
-                        <span style="color:#fff;">～</span>
+                        <span style="color:#fff;">→</span>
                         <input type="text" id="lnP2" placeholder="到着点" style="flex:1; width:0; font-size: 0.7rem; padding: 3px; background: #1a222a; color: #fff; border: 1px solid #555;">
                     </div>
                     <button id="btnDrawLine" style="background:var(--primary); color:#000; border:none; padding: 6px; font-weight:bold; cursor:pointer; border-radius: 4px; font-size: 0.75rem;">作図</button>
@@ -214,27 +214,35 @@
                         let px1 = s1.x + Math.cos(angle)*i, py1 = s1.y + Math.sin(angle)*i;
                         ctx.beginPath(); ctx.moveTo(px1, py1); ctx.lineTo(px1 + dx, py1 + dy); ctx.stroke();
                         let blockIdx = Math.floor(i / step);
-                        if (blockIdx % 2 === 1 && l.type === 'cb' && dist - i > step) {
-                            for(let j=1; j<=3; j++) {
-                                let subI = i + step * j / 4;
-                                let spx1 = s1.x + Math.cos(angle)*subI, spy1 = s1.y + Math.sin(angle)*subI;
-                                ctx.beginPath(); ctx.moveTo(spx1, spy1); ctx.lineTo(spx1 + dx, spy1 + dy); ctx.stroke();
+                        
+                        if (l.type === 'cb') {
+                            if (blockIdx % 2 === 1) {
+                                let endI = Math.min(dist, i + step);
+                                for(let j=1; j<=3; j++) {
+                                    let pdx = dx * (j/4), pdy = dy * (j/4);
+                                    let spx1 = px1 + pdx, spy1 = py1 + pdy;
+                                    let spx2 = s1.x + Math.cos(angle)*endI + pdx;
+                                    let spy2 = s1.y + Math.sin(angle)*endI + pdy;
+                                    ctx.beginPath(); ctx.moveTo(spx1, spy1); ctx.lineTo(spx2, spy2); ctx.stroke();
+                                }
+                            }
+                        } else if (l.type === 'cb_fence') {
+                            if (blockIdx > 0 && blockIdx % 4 === 0) {
+                                let cx = px1 + dx/2, cy = py1 + dy/2;
+                                let radiusOuter = Math.abs(dx * 0.4);
+                                let radiusInner = Math.abs(dx * 0.15);
+                                ctx.beginPath(); ctx.arc(cx, cy, Math.max(0.5, radiusInner), 0, Math.PI*2); ctx.stroke();
+                                ctx.beginPath(); ctx.arc(cx, cy, Math.max(1.5, radiusOuter), 0, Math.PI*2); ctx.stroke();
                             }
                         }
                     }
 
                     if (l.type === 'cb_fence') {
                         let midX1 = s1.x + dx/2, midY1 = s1.y + dy/2;
-                        let midX2 = s2.x + dx/2, midY2 = s2.y + dy/2;
+                        let midX2 = s1.x + Math.cos(angle)*dist + dx/2;
+                        let midY2 = s1.y + Math.sin(angle)*dist + dy/2;
                         ctx.beginPath(); ctx.moveTo(midX1, midY1); ctx.lineTo(midX2, midY2);
                         ctx.save(); ctx.setLineDash([4, 4]); ctx.stroke(); ctx.restore();
-
-                        let postStep = 2.0 * this.sc;
-                        for(let i=0; i<=dist; i+=postStep) {
-                            let px = s1.x + dx/2 + Math.cos(angle)*i, py = s1.y + dy/2 + Math.sin(angle)*i;
-                            ctx.beginPath(); ctx.arc(px, py, 1.5, 0, Math.PI*2); ctx.stroke();
-                            ctx.beginPath(); ctx.arc(px, py, 3.5, 0, Math.PI*2); ctx.stroke();
-                        }
                     }
                 }
                 ctx.restore();
@@ -368,7 +376,7 @@
                 let p2 = document.getElementById('lnP2').value.trim();
                 if(!p1 || !p2) return alert("出発点と到着点を入力してください");
                 
-                if(!this.pts.has(p1) || !this.pts.has(p2)) {
+                if(!this.pts.find(p=>p.name === p1) || !this.pts.find(p=>p.name === p2)) {
                     return alert("指定された点が見つかりません");
                 }
                 
