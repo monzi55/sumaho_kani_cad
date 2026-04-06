@@ -71,16 +71,36 @@
             <div class="tool-panel">
                 <div class="tool-gp-v">
                     <button class="t-btn active" id="modeSelect">点選択</button>
-                    <button class="t-btn" id="modeLine">結線</button>
+                    <button class="t-btn" id="modeLine">結線設定</button>
                 </div>
-                <div class="tool-gp-v" id="lineTypeSelector" style="display:none;">
-                    <button class="t-btn active" data-type="solid">実線</button>
-                    <button class="t-btn" data-type="dash">破線</button>
-                    <button class="t-btn" data-type="block">ブロック塀</button>
+                <div class="tool-gp-v" id="linePanel" style="display:none; padding: 6px; background: rgba(22,28,36,0.95); width: 220px; box-sizing: border-box;">
+                    <select id="selLineType" style="margin-bottom: 8px; padding: 4px; font-size: 0.7rem; background: #000; color: #fff; border: 1px solid #555;">
+                        <option value="solid">実線</option>
+                        <option value="dash_red">一点鎖線(赤)</option>
+                        <option value="cb">CB塀</option>
+                        <option value="cb_fence">CB塀+ﾌｪﾝｽ</option>
+                    </select>
+                    <div id="cbOptions" style="display:none; flex-direction: column; gap: 6px; margin-bottom: 8px; background: #1a222a; padding: 4px; border-radius: 4px;">
+                        <div style="display:flex; justify-content: space-around;">
+                            <label style="color:#ccc; font-size: 0.65rem;"><input type="radio" name="cbSide" value="right" checked> 右</label>
+                            <label style="color:#ccc; font-size: 0.65rem;"><input type="radio" name="cbSide" value="left"> 左</label>
+                        </div>
+                        <div style="display:flex; justify-content: space-around;">
+                            <label style="color:#ccc; font-size: 0.65rem;"><input type="radio" name="cbWidth" value="0.1" checked> 100</label>
+                            <label style="color:#ccc; font-size: 0.65rem;"><input type="radio" name="cbWidth" value="0.12"> 120</label>
+                            <label style="color:#ccc; font-size: 0.65rem;"><input type="radio" name="cbWidth" value="0.15"> 150</label>
+                        </div>
+                    </div>
+                    <div style="display:flex; gap: 4px; align-items: center; margin-bottom: 8px;">
+                        <input type="text" id="lnP1" placeholder="出発点" style="flex:1; width:0; font-size: 0.7rem; padding: 3px; background: #1a222a; color: #fff; border: 1px solid #555;">
+                        <span style="color:#fff;">～</span>
+                        <input type="text" id="lnP2" placeholder="到着点" style="flex:1; width:0; font-size: 0.7rem; padding: 3px; background: #1a222a; color: #fff; border: 1px solid #555;">
+                    </div>
+                    <button id="btnDrawLine" style="background:var(--primary); color:#000; border:none; padding: 6px; font-weight:bold; cursor:pointer; border-radius: 4px; font-size: 0.75rem;">作図</button>
                 </div>
                 <div class="tool-gp-v">
                     <button class="t-btn active" id="toggleLabel">点名:表示</button>
-                    <button class="t-btn" id="btnClearLines">線クリア</button>
+                    <button class="t-btn" id="btnUndoLine">線クリア(1つ戻る)</button>
                 </div>
             </div>
             <canvas id="cadCanvas"></canvas>
@@ -154,14 +174,13 @@
         constructor() {
             this.cnv = document.getElementById('cadCanvas'); this.wrp = document.getElementById('canvasWrapper'); this.ctx = this.cnv.getContext('2d');
             this.sc = 25; this.ox = 0; this.oy = 0; this.pts = []; this.selected = null;
-            this.lines = []; this.curMode = 'select'; this.curLineType = 'solid'; this.showLabel = true;
+            this.lines = []; this.curMode = 'select'; this.showLabel = true; this.focusInput = 1;
             this.resize(); this.init(); window.onresize = () => this.resize();
         }
         resize() { this.cnv.width = this.wrp.clientWidth; this.cnv.height = this.wrp.clientHeight; this.draw(); }
         draw() {
             const ctx = this.ctx; ctx.clearRect(0,0,this.cnv.width,this.cnv.height);
             
-            // 線を描画
             this.lines.forEach(l => {
                 const p1 = this.pts.find(p => p.name === l.p1);
                 const p2 = this.pts.find(p => p.name === l.p2);
@@ -169,19 +188,58 @@
                 const s1 = { x: p1.y * this.sc + this.ox, y: -p1.x * this.sc + this.oy };
                 const s2 = { x: p2.y * this.sc + this.ox, y: -p2.x * this.sc + this.oy };
                 
+                ctx.save();
                 ctx.beginPath();
-                ctx.strokeStyle = '#aaa'; ctx.lineWidth = 1.5;
-                ctx.setLineDash(l.type === 'dash' ? [5, 5] : []);
-                
-                if (l.type === 'block') {
-                    this.drawBlockWall(ctx, s1, s2);
-                } else {
+                if (l.type === 'solid') {
+                    ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.0;
                     ctx.moveTo(s1.x, s1.y); ctx.lineTo(s2.x, s2.y); ctx.stroke();
-                }
-            });
-            ctx.setLineDash([]); // リセット
+                } else if (l.type === 'dash_red') {
+                    ctx.strokeStyle = '#ff3333'; ctx.lineWidth = 1.5;
+                    ctx.setLineDash([10, 4, 2, 4]); // 一点鎖線
+                    ctx.moveTo(s1.x, s1.y); ctx.lineTo(s2.x, s2.y); ctx.stroke();
+                } else if (l.type === 'cb' || l.type === 'cb_fence') {
+                    ctx.strokeStyle = '#aaa'; ctx.lineWidth = 1.0;
+                    let angle = Math.atan2(s2.y - s1.y, s2.x - s1.x);
+                    let dist = Math.hypot(s2.x - s1.x, s2.y - s1.y);
+                    let w = l.width * this.sc; 
+                    let sig = l.side === 'right' ? 1 : -1;
+                    let dx = Math.cos(angle + Math.PI/2) * sig * w;
+                    let dy = Math.sin(angle + Math.PI/2) * sig * w;
+                    
+                    ctx.beginPath(); ctx.moveTo(s1.x, s1.y); ctx.lineTo(s2.x, s2.y); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(s1.x + dx, s1.y + dy); ctx.lineTo(s2.x + dx, s2.y + dy); ctx.stroke();
+                    
+                    let step = 0.4 * this.sc; 
+                    for(let i=0; i<=dist; i+=step) {
+                        let px1 = s1.x + Math.cos(angle)*i, py1 = s1.y + Math.sin(angle)*i;
+                        ctx.beginPath(); ctx.moveTo(px1, py1); ctx.lineTo(px1 + dx, py1 + dy); ctx.stroke();
+                        let blockIdx = Math.floor(i / step);
+                        if (blockIdx % 2 === 1 && l.type === 'cb' && dist - i > step) {
+                            for(let j=1; j<=3; j++) {
+                                let subI = i + step * j / 4;
+                                let spx1 = s1.x + Math.cos(angle)*subI, spy1 = s1.y + Math.sin(angle)*subI;
+                                ctx.beginPath(); ctx.moveTo(spx1, spy1); ctx.lineTo(spx1 + dx, spy1 + dy); ctx.stroke();
+                            }
+                        }
+                    }
 
-            // 点を描画
+                    if (l.type === 'cb_fence') {
+                        let midX1 = s1.x + dx/2, midY1 = s1.y + dy/2;
+                        let midX2 = s2.x + dx/2, midY2 = s2.y + dy/2;
+                        ctx.beginPath(); ctx.moveTo(midX1, midY1); ctx.lineTo(midX2, midY2);
+                        ctx.save(); ctx.setLineDash([4, 4]); ctx.stroke(); ctx.restore();
+
+                        let postStep = 2.0 * this.sc;
+                        for(let i=0; i<=dist; i+=postStep) {
+                            let px = s1.x + dx/2 + Math.cos(angle)*i, py = s1.y + dy/2 + Math.sin(angle)*i;
+                            ctx.beginPath(); ctx.arc(px, py, 1.5, 0, Math.PI*2); ctx.stroke();
+                            ctx.beginPath(); ctx.arc(px, py, 3.5, 0, Math.PI*2); ctx.stroke();
+                        }
+                    }
+                }
+                ctx.restore();
+            });
+
             this.pts.forEach(p => {
                 if(p.x === undefined) return;
                 const sx = p.y * this.sc + this.ox, sy = -p.x * this.sc + this.oy;
@@ -196,19 +254,6 @@
                 }
             });
         }
-        drawBlockWall(ctx, s1, s2) {
-            ctx.moveTo(s1.x, s1.y); ctx.lineTo(s2.x, s2.y); ctx.stroke();
-            const angle = Math.atan2(s2.y - s1.y, s2.x - s1.x);
-            const dist = Math.hypot(s2.x - s1.x, s2.y - s1.y);
-            const step = 15; // ハッチングの間隔
-            for (let i = 0; i < dist; i += step) {
-                const tx = s1.x + Math.cos(angle) * i;
-                const ty = s1.y + Math.sin(angle) * i;
-                ctx.moveTo(tx, ty);
-                ctx.lineTo(tx + Math.cos(angle + Math.PI/2) * 5, ty + Math.sin(angle + Math.PI/2) * 5);
-            }
-            ctx.stroke();
-        }
         autoFit() {
             const vs = this.pts.filter(i => i.x !== undefined); if(!vs.length) return;
             let x0=Infinity, x1=-Infinity, y0=Infinity, y1=-Infinity;
@@ -218,8 +263,14 @@
             this.draw();
         }
         select(name) { 
-            if (this.curMode === 'line' && this.selected && this.selected !== name) {
-                this.lines.push({ p1: this.selected, p2: name, type: this.curLineType });
+            if (this.curMode === 'line') {
+                if (this.focusInput === 1) {
+                    document.getElementById('lnP1').value = name;
+                    this.focusInput = 2;
+                } else {
+                    document.getElementById('lnP2').value = name;
+                    this.focusInput = 1;
+                }
             }
             this.selected = name; this.draw(); 
             const tr = document.querySelector(`tr[data-name="${name}"]`); 
@@ -307,27 +358,52 @@
             // UIコントロールのイベント
             document.getElementById('modeSelect').onclick = () => this.setMode('select');
             document.getElementById('modeLine').onclick = () => this.setMode('line');
-            document.querySelectorAll('#lineTypeSelector .t-btn').forEach(b => {
-                b.onclick = () => {
-                    document.querySelectorAll('#lineTypeSelector .t-btn').forEach(bt => bt.classList.remove('active'));
-                    b.classList.add('active');
-                    this.curLineType = b.dataset.type;
-                };
-            });
+            
+            document.getElementById('selLineType').onchange = (e) => {
+                document.getElementById('cbOptions').style.display = (e.target.value === 'cb' || e.target.value === 'cb_fence') ? 'flex' : 'none';
+            };
+
+            document.getElementById('btnDrawLine').onclick = () => {
+                let p1 = document.getElementById('lnP1').value.trim();
+                let p2 = document.getElementById('lnP2').value.trim();
+                if(!p1 || !p2) return alert("出発点と到着点を入力してください");
+                
+                if(!this.pts.has(p1) || !this.pts.has(p2)) {
+                    return alert("指定された点が見つかりません");
+                }
+                
+                let type = document.getElementById('selLineType').value;
+                let side = document.querySelector('input[name="cbSide"]:checked').value;
+                let width = parseFloat(document.querySelector('input[name="cbWidth"]:checked').value);
+                
+                this.lines.push({ p1, p2, type, side, width });
+                this.draw();
+                
+                document.getElementById('lnP1').value = p2;
+                document.getElementById('lnP2').value = '';
+                this.focusInput = 2;
+                document.getElementById('lnP2').focus();
+            };
+
             document.getElementById('toggleLabel').onclick = () => {
                 this.showLabel = !this.showLabel;
                 document.getElementById('toggleLabel').innerText = `点名:${this.showLabel?'表示':'非表示'}`;
                 this.draw();
             };
-            document.getElementById('btnClearLines').onclick = () => {
-                if(confirm('全ての線を削除しますか？')) { this.lines = []; this.draw(); }
+            
+            document.getElementById('btnUndoLine').onclick = () => {
+                if(this.lines.length > 0) {
+                    this.lines.pop();
+                    this.draw();
+                }
             };
         }
         setMode(m) {
             this.curMode = m;
             document.getElementById('modeSelect').classList.toggle('active', m === 'select');
             document.getElementById('modeLine').classList.toggle('active', m === 'line');
-            document.getElementById('lineTypeSelector').style.display = m === 'line' ? 'flex' : 'none';
+            document.getElementById('linePanel').style.display = m === 'line' ? 'flex' : 'none';
+            if (m === 'line') this.focusInput = 1;
         }
         zoomRelative(f) {
             const rect = this.cnv.getBoundingClientRect();
