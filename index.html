@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>SumahoKaniCAD - Pro Elite v6</title>
+    <style>
+        :root {
+            --primary: #00e5ff; --bg: #0a0e14; --surface: #161c24; --text: #e1e4e8;
+            --text-dim: #9aa1a9; --accent: #ff9100; --success: #00c853; --border: #2d333b;
+        }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; overflow: hidden; display: flex; flex-direction: column; }
+        header { padding: 0.5rem 1rem; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        h1 { margin: 0; font-size: 0.85rem; color: var(--primary); font-weight: bold; }
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        .config-bar { background: var(--surface); padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+        .form-gp { display: flex; align-items: center; gap: 3px; }
+        .form-gp label { font-size: 0.55rem; color: var(--text-dim); }
+        .form-gp input { background: var(--bg); border: 1px solid #333; color: var(--text); padding: 2px 4px; border-radius: 3px; font-size: 0.7rem; width: 65px; font-family: monospace; }
+        .workspace { flex: 1; display: grid; grid-template-columns: 420px 1fr; overflow: hidden; }
+        .sidebar { border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; background: #0c1117; min-width: 320px; }
+        .drop-zone { padding: 0.75rem; margin: 0.5rem; border: 1px dashed #444; border-radius: 6px; text-align: center; font-size: 0.7rem; color: var(--text-dim); cursor: pointer; }
+        .table-wrap { flex: 1; overflow-y: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.65rem; table-layout: fixed; }
+        thead th { position: sticky; top: 0; background: #1c252e; padding: 7px; text-align: left; border-bottom: 1px solid var(--border); color: #888; font-weight: normal; z-index: 10; }
+        tbody td { padding: 5px 6px; border-bottom: 1px solid #1c252e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+        .session-row { background: #1a222a; color: var(--primary); font-weight: bold; padding: 6px 8px; font-size: 0.6rem; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+        .session-details { color: var(--text-dim); font-weight: normal; padding-left: 10px; font-size: 0.55rem; }
+        .row-selected { background: rgba(0, 229, 255, 0.1) !important; }
+        .row-selected .st-name { color: var(--primary); }
+        .st-name { color: #eee; font-weight: bold; }
+        .type-st { background: #006064; color: #fff; font-size: 0.55rem; padding: 1px 4px; border-radius: 2px; }
+        .action-bar { padding: 0.75rem; background: var(--surface); border-top: 1px solid var(--border); display: flex; gap: 10px; }
+        .btn-action { flex: 1; background: var(--primary); color: #000; padding: 10px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; font-weight: bold; text-align: center; border: none; }
+        .btn-action:active { filter: brightness(0.8); transform: translateY(1px); }
+        .viewport { position: relative; background: #050505; flex: 1; }
+        canvas { display: block; touch-action: none; background: #000; }
+        .ctrls { position: absolute; bottom: 15px; right: 15px; display: flex; flex-direction: column; gap: 8px; }
+        .c-btn { width: 38px; height: 38px; background: rgba(22, 28, 36, 0.9); border: 1px solid #444; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        @media (max-width: 1100px) { .workspace { grid-template-columns: 1fr; grid-template-rows: 1.2fr 1fr; } }
+    </style>
+</head>
+<body>
+<header><h1>SumahoKaniCAD <span style="opacity:0.5; font-size: 0.6rem;">Precision v6.0</span></h1></header>
+<div class="main-content">
+    <div class="config-bar">
+        <label style="font-size:0.6rem; color:var(--primary); font-weight:bold;">起点(ST1):</label>
+        <div class="form-gp"><label>N</label><input type="number" id="initX" value="100.000" step="0.001"></div>
+        <div class="form-gp"><label>E</label><input type="number" id="initY" value="100.000" step="0.001"></div>
+        <div class="form-gp"><label>H</label><input type="number" id="initZ" value="0.000" step="0.001"></div>
+        <div class="form-gp"><label>方位</label><input type="number" id="initAzi" value="0.0000" step="0.0001"></div>
+    </div>
+    <div class="workspace">
+        <div class="sidebar">
+            <div class="drop-zone" id="dropZone">APAファイルをドロップ</div>
+            <div class="table-wrap">
+                <table>
+                    <colgroup><col width="45"><col width="85"><col width="90"><col width="90"><col width="90"></colgroup>
+                    <thead><tr><th></th><th>測点名称</th><th style="text-align:right">X</th><th style="text-align:right">Y</th><th style="text-align:right">Z</th></tr></thead>
+                    <tbody id="pTableBody"></tbody>
+                </table>
+            </div>
+            <div class="action-bar"><button class="btn-action" id="btnExportSima">SIMAエクスポート</button></div>
+        </div>
+        <div id="canvasWrapper" class="viewport">
+            <canvas id="cadCanvas"></canvas>
+            <div class="ctrls">
+                <div class="c-btn" id="btnZoomIn">+</div>
+                <div class="c-btn" id="btnZoomOut">-</div>
+                <div class="c-btn" id="btnFit">回</div>
+            </div>
+        </div>
+    </div>
+</div>
+<input type="file" id="fileInput" style="display: none;">
+<script>
+    const parseDMS = (s) => { if (!s) return 0.0; const v = parseFloat(s); const d = Math.floor(v + 1e-7), ms = (v - d) * 100, min = Math.floor(ms + 1e-4), sec = (ms - min) * 100; return d + (min / 60) + (sec / 3600); };
+    class SurveyEngine {
+        constructor() { this.pts = new Map(); this.log = []; this.aziBase = 0; this.st = null; }
+        reset(x,y,z,azi) { this.pts.clear(); this.log = []; this.aziBase = azi; this.st = {x,y,z,name:'',ih:0}; }
+        process(text) {
+            const lines = text.split(/\n/).map(l => l.trim().split(',').map(s => s.trim()));
+            let sessionFlag = true; // 初回セッションの最初のFもBSとして扱う
+            let curSess = { type: 'SESS', name: `据付 (開始)`, inst: '?', bs: '?' };
+            this.log.push(curSess);
+
+            for (let p of lines) {
+                if (p[0] === 'B') { 
+                    if (this.log.length > 1) { // 既に開始セッションがある場合は更新
+                        curSess = { type: 'SESS', name: `据付 (更新)`, inst: '?', bs: '?' }; 
+                        this.log.push(curSess); 
+                    }
+                    sessionFlag = true; 
+                }
+                if (p[0] === 'D') {
+                    const nm = p[1], ih = parseFloat(p[3]) || 0;
+                    if(this.pts.has(nm)) this.st = { ...this.pts.get(nm), name: nm, ih };
+                    else { if (!this.pts.size) this.pts.set(nm, { x: this.st.x, y: this.st.y, z: this.st.z }); this.st.name = nm; this.st.ih = ih; }
+                    if (curSess) curSess.inst = nm;
+                    if (this.log.filter(l => l.type === 'SESS').length <= 1 && !this.log.some(l => l.type === 'ST')) {
+                        this.log.push({ type: 'ST', name: nm, ...this.pts.get(nm) });
+                    }
+                }
+                if (p[0] === 'F' && p.length >= 8) {
+                    const nm = p[1], th = parseFloat(p[3]) || 0, ha = parseDMS(p[5]), va = parseDMS(p[6]), sd = parseFloat(p[7]) || 0;
+                    if (sessionFlag) {
+                        sessionFlag = false; let bs = nm;
+                        // 知っている点を探す、なければ最初のFを方位基準とする
+                        if (!this.pts.has(bs)) { for (let k of this.pts.keys()) { if (k !== this.st.name) { bs = k; break; } } }
+                        
+                        if (this.pts.has(bs)) {
+                            const b = this.pts.get(bs);
+                            this.aziBase = ((Math.atan2(b.y - this.st.y, b.x - this.st.x) * 180 / Math.PI + 360) % 360 - ha + 360) % 360;
+                            if (curSess) curSess.bs = bs; 
+                            continue; // 1回目でも後視点は表示しない
+                        } else {
+                            // 既知点がない（初回）の場合は入力された当初方向角をベースに方位確定。点自体は表示しない。
+                            if (curSess) curSess.bs = nm;
+                            continue;
+                        }
+                    }
+                    const azi = (this.aziBase + ha) % 360, ar = azi * Math.PI/180, vr = va * Math.PI/180;
+                    const hd = sd * Math.sin(vr), dz = sd * Math.cos(vr) + this.st.ih - th;
+                    const res = { x: this.st.x + hd*Math.cos(ar), y: this.st.y + hd*Math.sin(ar), z: this.st.z + dz };
+                    if (!this.pts.has(nm)) { this.pts.set(nm, res); this.log.push({ type: 'OB', name: nm, ...res }); }
+                    else this.log.push({ type: 'CHECK', name: nm, ...this.pts.get(nm) });
+                }
+            }
+            return this.log;
+        }
+    }
+
+    class CadView {
+        constructor() {
+            this.cnv = document.getElementById('cadCanvas'); this.wrp = document.getElementById('canvasWrapper'); this.ctx = this.cnv.getContext('2d');
+            this.sc = 25; this.ox = 0; this.oy = 0; this.pts = []; this.selected = null;
+            this.resize(); this.init(); window.onresize = () => this.resize();
+        }
+        resize() { this.cnv.width = this.wrp.clientWidth; this.cnv.height = this.wrp.clientHeight; this.draw(); }
+        draw() {
+            const ctx = this.ctx; ctx.clearRect(0,0,this.cnv.width,this.cnv.height);
+            this.pts.forEach(p => {
+                if(p.x === undefined) return;
+                const sx = p.y * this.sc + this.ox, sy = -p.x * this.sc + this.oy;
+                const sel = p.name === this.selected;
+                ctx.fillStyle = sel ? 'var(--accent)' : (p.type === 'ST' ? 'var(--primary)' : 'var(--success)');
+                ctx.beginPath(); ctx.arc(sx, sy, sel ? 6 : 4, 0, 7); ctx.fill();
+                if(sel) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke(); }
+                ctx.fillStyle = sel ? '#fff' : '#888'; ctx.font = sel ? 'bold 12px sans-serif' : '10px sans-serif'; 
+                ctx.fillText(p.name, sx+8, sy-4);
+            });
+        }
+        autoFit() {
+            const vs = this.pts.filter(i => i.x !== undefined); if(!vs.length) return;
+            let x0=Infinity, x1=-Infinity, y0=Infinity, y1=-Infinity;
+            vs.forEach(i=>{ x0=Math.min(x0,i.x); x1=Math.max(x1,i.x); y0=Math.min(y0,i.y); y1=Math.max(y1,i.y); });
+            this.sc = (Math.min(this.cnv.width, this.cnv.height) / (Math.max(x1-x0, y1-y0, 1))) * 0.7;
+            this.ox = this.cnv.width/2 - ((y0+y1)/2)*this.sc; this.oy = this.cnv.height/2 + ((x0+x1)/2)*this.sc;
+            this.draw();
+        }
+        select(name) { 
+            this.selected = name; this.draw(); 
+            const tr = document.querySelector(`tr[data-name="${name}"]`); 
+            if(tr) tr.scrollIntoView({behavior:'smooth', block:'center'});
+            document.querySelectorAll('tr').forEach(r => r.classList.toggle('row-selected', r.getAttribute('data-name') === name));
+        }
+        init() {
+            let d=false, lx, ly;
+            this.cnv.onpointerdown=(e)=>{
+                d=true; lx=e.clientX; ly=e.clientY; this.cnv.setPointerCapture(e.pointerId);
+                const rect = this.cnv.getBoundingClientRect(); const mx = e.clientX-rect.left, my = e.clientY-rect.top;
+                let found = null, minD = 25;
+                this.pts.forEach(p => { if(p.x === undefined) return; const sx = p.y*this.sc+this.ox, sy = -p.x*this.sc+this.oy; const dist = Math.hypot(mx-sx, my-sy); if(dist < minD) { found = p.name; minD = dist; } });
+                if(found) this.select(found);
+            };
+            this.cnv.onpointerup=()=>d=false;
+            this.cnv.onpointermove=(e)=>{ if(!d) return; this.ox+=e.clientX-lx; this.oy+=e.clientY-ly; lx=e.clientX; ly=e.clientY; this.draw(); };
+            this.cnv.onwheel=(e)=>{ e.preventDefault(); const f=e.deltaY>0?0.9:1.1; this.ox=e.offsetX-(e.offsetX-this.ox)*f; this.oy=e.offsetY-(e.offsetY-this.oy)*f; this.sc*=f; this.draw(); };
+        }
+    }
+
+    const eng = new SurveyEngine(), view = new CadView();
+    function run(file) {
+        eng.reset(parseFloat(document.getElementById('initX').value), parseFloat(document.getElementById('initY').value), parseFloat(document.getElementById('initZ').value), parseFloat(document.getElementById('initAzi').value));
+        const r = new FileReader(); r.onload = (e) => { const res = eng.process(e.target.result); view.pts = res; view.draw(); view.autoFit(); update(res); };
+        r.readAsText(file, 'shift-jis');
+    }
+    function update(items) {
+        const b = document.getElementById('pTableBody'); b.innerHTML = '';
+        items.forEach(i => {
+            const tr = document.createElement('tr');
+            if(i.type === 'SESS') tr.innerHTML = `<td colspan="5" class="session-row">${i.name} <span class="session-details">ST:${i.inst} / BS:${i.bs}</span></td>`;
+            else {
+                tr.setAttribute('data-name', i.name); tr.onclick = () => view.select(i.name);
+                tr.innerHTML = `<td>${(i.type==='ST')?'<span class="type-st">据付</span>':''}</td><td class="st-name">${i.name}</td><td style="text-align:right">${i.x.toFixed(3)}</td><td style="text-align:right">${i.y.toFixed(3)}</td><td style="text-align:right">${i.z.toFixed(3)}</td>`;
+            }
+            b.appendChild(tr);
+        });
+    }
+
+    document.getElementById('btnExportSima').onclick = async () => {
+        if (!eng.pts.size) return alert("データがありません");
+        
+        // SIMAファイル構成の構築 (Z00, Z01, A99を追加)
+        let s = "G00,SumahoKaniCAD\r\n";
+        s += "Z00, /* 座標データ */,\r\n";
+        s += "Z01,2,\r\n"; // 座標単位コンマ区切り
+        s += "A00,現場データ,1\r\n";
+        
+        let idx = 1;
+        for (let [name, p] of eng.pts) {
+            // A01,ID,点名,X,Y,Z,, (点名の後のカンマを1つに修正)
+            s += `A01,${idx.toString().padStart(5,' ')},${name.padEnd(20,' ')},${p.x.toFixed(3).padStart(12,' ')},${p.y.toFixed(3).padStart(12,' ')},${p.z.toFixed(3).padStart(12,' ')},,\r\n`;
+            idx++;
+        }
+        s += "A99,\r\n"; // 座標セクション終了
+        
+        const now = new Date();
+        const pad = (n) => n.toString().padStart(2, '0');
+        const fname = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.sim`;
+
+        // 1. Windows (Chrome/Edge) 向の確実な保存
+        if (window.showSaveFilePicker) {
+            try {
+                const handle = await window.showSaveFilePicker({
+                    suggestedName: fname,
+                    types: [{ description: 'SIMAファイル', accept: { 'text/plain': ['.sim'] } }]
+                });
+                const writable = await handle.createWritable();
+                await writable.write(s);
+                await writable.close();
+                return;
+            } catch (e) { if (e.name !== 'AbortError') console.error(e); return; }
+        }
+
+        // 2. スマホ環境向の通常ダウンロード（UUID回避のための処理）
+        const blob = new Blob([s], {type: 'text/plain'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fname;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 5000);
+    };
+
+    document.getElementById('dropZone').onclick = () => document.getElementById('fileInput').click();
+    document.getElementById('fileInput').onchange = (e) => { if(e.target.files[0]) run(e.target.files[0]); };
+    document.getElementById('btnZoomIn').onclick = () => { view.sc *= 1.2; view.draw(); };
+    document.getElementById('btnZoomOut').onclick = () => { view.sc *= 0.8; view.draw(); };
+    document.getElementById('btnFit').onclick = () => view.autoFit();
+    window.ondragover = e => e.preventDefault();
+    window.ondrop = e => { e.preventDefault(); if(e.dataTransfer.files[0]) run(e.dataTransfer.files[0]); };
+</script>
+</body>
+</html>
