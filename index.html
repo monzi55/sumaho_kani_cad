@@ -69,8 +69,9 @@
     </div>
     <div class="workspace">
         <div class="sidebar">
-            <div style="padding: 10px; display: flex; gap: 8px;">
-                <button class="btn-action" id="btnExportSima" style="padding: 6px; font-size: 0.65rem; background: #333; color: #fff; border: 1px solid #555;">SIMA出力</button>
+            <div style="padding: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
+                <button class="btn-action" id="btnExportSima" style="flex:none; width:80px; padding: 6px; font-size: 0.65rem; background: #333; color: #fff; border: 1px solid #555;">SIMA出力</button>
+                <button class="btn-action" id="btnExportDxf" style="flex:none; width:80px; padding: 6px; font-size: 0.65rem; background: #333; color: #fff; border: 1px solid #555;">DXF出力</button>
                 <div class="drop-zone" id="dropZone" style="flex:1; margin:0; padding: 5px; font-size: 0.6rem;">APAドロップ</div>
             </div>
             <div class="table-wrap">
@@ -513,46 +514,115 @@
     document.getElementById('btnExportSima').onclick = async () => {
         if (!eng.pts.size) return alert("データがありません");
         
-        // SIMAファイル構成の構築 (Z00, Z01, A99を追加)
         let s = "G00,スマホ簡易ＣＡＤ\r\n";
         s += "Z00, /* 座標データ */,\r\n";
-        s += "Z01,2,\r\n"; // 座標単位コンマ区切り
+        s += "Z01,2,\r\n";
         s += "A00,現場データ,1\r\n";
         
         let idx = 1;
         for (let [name, p] of eng.pts) {
-            // A01,ID,点名,X,Y,Z,, (点名の後のカンマを1つに修正)
             s += `A01,${idx.toString().padStart(5,' ')},${name.padEnd(20,' ')},${p.x.toFixed(3).padStart(12,' ')},${p.y.toFixed(3).padStart(12,' ')},${p.z.toFixed(3).padStart(12,' ')},,\r\n`;
             idx++;
         }
-        s += "A99,\r\n"; // 座標セクション終了
+        s += "A99,\r\n";
         
         const now = new Date();
         const pad = (n) => n.toString().padStart(2, '0');
-        const fname = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.sim`;
+        const fname = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}.sim`;
 
-        // 1. Windows (Chrome/Edge) 向の確実な保存
         if (window.showSaveFilePicker) {
             try {
-                const handle = await window.showSaveFilePicker({
-                    suggestedName: fname,
-                    types: [{ description: 'SIMAファイル', accept: { 'text/plain': ['.sim'] } }]
-                });
-                const writable = await handle.createWritable();
-                await writable.write(s);
-                await writable.close();
-                return;
-            } catch (e) { if (e.name !== 'AbortError') console.error(e); return; }
+                const handle = await window.showSaveFilePicker({ suggestedName: fname, types: [{ description: 'SIMA', accept: { 'text/plain': ['.sim'] } }] });
+                const writable = await handle.createWritable(); await writable.write(s); await writable.close(); return;
+            } catch (e) { if (e.name !== 'AbortError') console.error(e); }
         }
-
-        // 2. スマホ環境向の通常ダウンロード（UUID回避のための処理）
         const blob = new Blob([s], {type: 'text/plain'});
         const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fname;
-        document.body.appendChild(a);
-        a.click();
+        const a = document.createElement('a'); a.href = url; a.download = fname; document.body.appendChild(a); a.click();
+        setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 5000);
+    };
+
+    document.getElementById('btnExportDxf').onclick = async () => {
+        if (!view.pts.length && !view.lines.length) return alert("データがありません");
+
+        let dxf = "  0\nSECTION\n  2\nENTITIES\n";
+
+        const addLine = (x1, y1, x2, y2, layer = "0", color = null) => {
+            let res = `  0\nLINE\n  8\n${layer}\n`;
+            if (color !== null) res += ` 62\n${color}\n`;
+            // Survey X(N) -> DXF Y, Survey Y(E) -> DXF X
+            res += ` 10\n${y1.toFixed(4)}\n 20\n${x1.toFixed(4)}\n 30\n0.0\n`;
+            res += ` 11\n${y2.toFixed(4)}\n 21\n${x2.toFixed(4)}\n 31\n0.0\n`;
+            return res;
+        };
+
+        const addText = (x, y, txt, size = 0.2, layer = "P_NAME") => {
+            return `  0\nTEXT\n  8\n${layer}\n 10\n${y.toFixed(4)}\n 20\n${x.toFixed(4)}\n 30\n0.0\n 40\n${size}\n  1\n${txt}\n`;
+        };
+        
+        const addPoint = (x, y, layer = "P_MARK") => {
+            return `  0\nPOINT\n  8\n${layer}\n 10\n${y.toFixed(4)}\n 20\n${x.toFixed(4)}\n 30\n0.0\n`;
+        };
+
+        // Output Points
+        view.pts.forEach(p => {
+            if (p.x === undefined) return;
+            dxf += addPoint(p.x, p.y);
+            dxf += addText(p.x, p.y, p.name);
+        });
+
+        // Output Lines
+        view.lines.forEach(l => {
+            const p1 = view.pts.find(p => p.name === l.p1);
+            const p2 = view.pts.find(p => p.name === l.p2);
+            if (!p1 || !p2) return;
+
+            if (l.type === 'solid') {
+                dxf += addLine(p1.x, p1.y, p2.x, p2.y, "L_SOLID");
+            } else if (l.type === 'dash_red') {
+                dxf += addLine(p1.x, p1.y, p2.x, p2.y, "L_DASH_RED", 1); // 1 = Red
+            } else if (l.type === 'cb' || l.type === 'cb_fence') {
+                const layer = l.type === 'cb' ? "L_CB" : "L_CB_FENCE";
+                let angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+                let dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+                let w = l.width; 
+                let sig = l.side === 'right' ? 1 : -1;
+                let dx = Math.cos(angle + Math.PI/2) * sig * w;
+                let dy = Math.sin(angle + Math.PI/2) * sig * w;
+
+                // Main lines
+                dxf += addLine(p1.x, p1.y, p2.x, p2.y, layer);
+                dxf += addLine(p1.x + dx, p1.y + dy, p2.x + dx, p2.y + dy, layer);
+
+                // Blocks/Ticks
+                let step = 0.4;
+                for(let i=0; i<=dist; i+=step) {
+                    let px1 = p1.x + Math.cos(angle)*i, py1 = p1.y + Math.sin(angle)*i;
+                    dxf += addLine(px1, py1, px1 + dx, py1 + dy, layer);
+                }
+                
+                if (l.type === 'cb_fence') {
+                    // Fence middle line
+                    dxf += addLine(p1.x + dx/2, p1.y + dy/2, p2.x + dx/2, p2.y + dy/2, layer);
+                }
+            }
+        });
+
+        dxf += "  0\nENDSEC\n  0\nEOF\n";
+
+        const now = new Date();
+        const pad = (n) => n.toString().padStart(2, '0');
+        const fname = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}.dxf`;
+
+        if (window.showSaveFilePicker) {
+            try {
+                const handle = await window.showSaveFilePicker({ suggestedName: fname, types: [{ description: 'DXF', accept: { 'image/vnd.dxf': ['.dxf'] } }] });
+                const writable = await handle.createWritable(); await writable.write(dxf); await writable.close(); return;
+            } catch (e) { if (e.name !== 'AbortError') console.error(e); }
+        }
+        const blob = new Blob([dxf], {type: 'application/dxf'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = fname; document.body.appendChild(a); a.click();
         setTimeout(() => { document.body.removeChild(a); window.URL.revokeObjectURL(url); }, 5000);
     };
 
