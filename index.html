@@ -105,9 +105,9 @@
                         </div>
                     </div>
                     <div style="display:flex; gap: 4px; align-items: center; margin-bottom: 8px;">
-                        <input type="text" id="lnP1" placeholder="起点" readonly style="flex:1; width:0; font-size: 0.7rem; padding: 3px; background: #1a222a; color: #fff; border: 1px solid #555; pointer-events: auto;">
+                        <input type="text" id="lnP1" placeholder="起点" style="flex:1; width:0; font-size: 0.7rem; padding: 3px; background: #1a222a; color: #fff; border: 1px solid #555;">
                         <span style="color:#fff;">→</span>
-                        <input type="text" id="lnP2" placeholder="到着" readonly style="flex:1; width:0; font-size: 0.7rem; padding: 3px; background: #1a222a; color: #fff; border: 1px solid #555; pointer-events: auto;">
+                        <input type="text" id="lnP2" placeholder="到着" style="flex:1; width:0; font-size: 0.7rem; padding: 3px; background: #1a222a; color: #fff; border: 1px solid #555;">
                     </div>
                     <button id="btnDrawLine" style="background:var(--primary); color:#000; border:none; padding: 6px; font-weight:bold; cursor:pointer; border-radius: 4px; font-size: 0.75rem;">作図</button>
                 </div>
@@ -295,10 +295,10 @@
             if (this.curMode === 'line') {
                 if (this.focusInput === 1) {
                     document.getElementById('lnP1').value = name;
-                    this.setFocusInput(2);
+                    this.setFocusInput(2, true);
                 } else {
                     document.getElementById('lnP2').value = name;
-                    this.setFocusInput(1);
+                    this.setFocusInput(1, true);
                 }
             }
             this.selected = name; this.draw(); 
@@ -306,11 +306,20 @@
             if(tr) tr.scrollIntoView({behavior:'smooth', block:'center'});
             document.querySelectorAll('tr').forEach(r => r.classList.toggle('row-selected', r.getAttribute('data-name') === name));
         }
-        setFocusInput(idx) {
+        setFocusInput(idx, suppressKeyboard) {
             this.focusInput = idx;
             const i1 = document.getElementById('lnP1'), i2 = document.getElementById('lnP2');
+            const target = idx === 1 ? i1 : i2;
             i1.classList.toggle('active-input', idx === 1);
             i2.classList.toggle('active-input', idx === 2);
+            
+            if (suppressKeyboard) {
+                target.inputMode = 'none';
+                target.focus();
+                setTimeout(() => { target.inputMode = 'text'; }, 100);
+            } else {
+                target.focus();
+            }
         }
         init() {
             let dragging = false, lx, ly;
@@ -419,7 +428,7 @@
                 
                 document.getElementById('lnP1').value = p2;
                 document.getElementById('lnP2').value = '';
-                this.setFocusInput(2);
+                this.setFocusInput(2, true);
             };
 
             document.getElementById('toggleLabel').onclick = () => {
@@ -450,7 +459,7 @@
             }
             
             if (m === 'line') {
-                this.setFocusInput(1);
+                this.setFocusInput(1, true);
                 // 画面サイズ変更に伴いキャンバスをリサイズ
                 setTimeout(() => this.resize(), 500);
             } else {
