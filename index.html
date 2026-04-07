@@ -58,7 +58,7 @@
         .t-btn:last-child { border-bottom: none; }
         .t-btn.active { background: var(--primary); color: #000; font-weight: bold; }
         .viewport { position: relative; background: #050505; flex: 1; transition: flex 0.4s ease; overflow: hidden; }
-        canvas { display: block; touch-action: none; background: #000; position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        canvas { display: block; touch-action: none; background: #000; position: absolute; top: 0; left: 0; }
         .ctrls { position: absolute; bottom: 15px; right: 15px; display: flex; flex-direction: column; gap: 8px; }
         .c-btn { width: 38px; height: 38px; background: rgba(22, 28, 36, 0.9); border: 1px solid #444; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; }
         @media (max-width: 1100px) { 
@@ -211,9 +211,20 @@
             this.lines = []; this.curMode = 'select'; this.showLabel = true; this.focusInput = 1;
             this.resize(); this.init(); window.onresize = () => this.resize();
         }
-        resize() { this.cnv.width = this.wrp.clientWidth; this.cnv.height = this.wrp.clientHeight; this.draw(); }
+        resize() {
+            const r = this.wrp.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            this.cnv.width = r.width * dpr;
+            this.cnv.height = r.height * dpr;
+            this.cnv.style.width = r.width + 'px';
+            this.cnv.style.height = r.height + 'px';
+            this.draw();
+        }
         draw() {
             const ctx = this.ctx; ctx.clearRect(0,0,this.cnv.width,this.cnv.height);
+            const dpr = window.devicePixelRatio || 1;
+            ctx.save();
+            ctx.scale(dpr, dpr);
             
             this.lines.forEach(l => {
                 const p1 = this.pts.find(p => p.name === l.p1);
@@ -299,6 +310,7 @@
                     ctx.fillText(p.name, sx+8, sy-4);
                 }
             });
+            ctx.restore();
         }
         autoFit() {
             const vs = this.pts.filter(i => i.x !== undefined); if(!vs.length) return;
@@ -490,9 +502,11 @@
             if (m === 'line') {
                 this.setFocusInput(1, true);
                 // 画面サイズ変更に伴いキャンバスをリサイズ
+                this.resize();
                 setTimeout(() => this.resize(), 500);
             } else {
                 this.resize();
+                setTimeout(() => this.resize(), 500);
             }
         }
         zoomRelative(f) {
@@ -529,6 +543,7 @@
             }
             b.appendChild(tr);
         });
+        view.resize();
     }
 
     document.getElementById('btnExportSima').onclick = async () => {
@@ -576,22 +591,7 @@
             return res;
         };
 
-        const addText = (x, y, txt, size = 0.2, layer = "P_NAME") => {
-            return `  0\nTEXT\n  8\n${layer}\n 10\n${y.toFixed(4)}\n 20\n${x.toFixed(4)}\n 30\n0.0\n 40\n${size}\n  1\n${txt}\n`;
-        };
-        
-        const addPoint = (x, y, layer = "P_MARK") => {
-            return `  0\nPOINT\n  8\n${layer}\n 10\n${y.toFixed(4)}\n 20\n${x.toFixed(4)}\n 30\n0.0\n`;
-        };
-
-        // Output Points
-        view.pts.forEach(p => {
-            if (p.x === undefined) return;
-            dxf += addPoint(p.x, p.y);
-            dxf += addText(p.x, p.y, p.name);
-        });
-
-        // Output Lines
+        // Output Lines Only (Points excluded per user request)
         view.lines.forEach(l => {
             const p1 = view.pts.find(p => p.name === l.p1);
             const p2 = view.pts.find(p => p.name === l.p2);
