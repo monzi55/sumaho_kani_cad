@@ -62,17 +62,13 @@
         .ctrls { position: absolute; bottom: 15px; right: 15px; display: flex; flex-direction: column; gap: 8px; }
         .c-btn { width: 38px; height: 38px; background: rgba(22, 28, 36, 0.9); border: 1px solid #444; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; }
         @media (max-width: 1100px) { 
-            .workspace { grid-template-columns: 1fr; grid-template-rows: 1fr 1.2fr; transition: grid-template-rows 0.4s ease; }
-            .workspace.minimized { grid-template-rows: 0fr 1fr; }
-            .sidebar { transition: flex 0.4s ease; overflow: hidden; }
-            .workspace.minimized .config-bar, 
-            .workspace.minimized .drop-zone, 
-            .workspace.minimized .table-wrap { display: none; }
+            .workspace { grid-template-columns: 1fr; grid-template-rows: 1.5fr 1fr; transition: grid-template-rows 0.3s ease; }
+            .viewport { grid-row: 1; }
+            .sidebar { grid-row: 2; border-right: none; border-top: 1px solid var(--border); overflow: hidden; }
+            .workspace.minimized { grid-template-rows: 1fr 0fr; }
+            .workspace.minimized .sidebar { border-top: none; }
         }
-        .main-content.minimized .config-bar { display: none; }
-        .sidebar.minimized .drop-zone, .sidebar.minimized .table-wrap { display: none; }
-        .sidebar.minimized { min-height: 0; flex: 0; }
-        .workspace.minimized { grid-template-rows: auto 1fr; }
+        .sidebar.minimized .table-wrap { display: none; }
     </style>
 </head>
 <body>
