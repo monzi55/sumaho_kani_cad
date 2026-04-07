@@ -9,7 +9,7 @@
             --primary: #00e5ff; --bg: #0a0e14; --surface: #161c24; --text: #e1e4e8;
             --text-dim: #9aa1a9; --accent: #ff9100; --success: #00c853; --border: #2d333b;
         }
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; overflow: hidden; display: flex; flex-direction: column; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; height: 100dvh; background: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; overflow: hidden; display: flex; flex-direction: column; }
         header { 
             flex: none;
             padding: 10px 12px;
@@ -57,8 +57,8 @@
         .t-btn { padding: 8px 12px; font-size: 0.7rem; color: #ccc; border: none; background: transparent; cursor: pointer; text-align: left; border-bottom: 1px solid #333; }
         .t-btn:last-child { border-bottom: none; }
         .t-btn.active { background: var(--primary); color: #000; font-weight: bold; }
-        .viewport { position: relative; background: #050505; flex: 1; transition: flex 0.4s ease; overflow: hidden; min-height: 0; min-width: 0; }
-        canvas { display: block; touch-action: none; background: #000; position: absolute; top: 0; left: 0; }
+        .viewport { position: relative; background: #050505; flex: 1; overflow: hidden; min-height: 0; min-width: 0; }
+        canvas { display: block; touch-action: none; background: #000; position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
         .ctrls { position: absolute; bottom: 15px; right: 15px; display: flex; flex-direction: column; gap: 8px; }
         .c-btn { width: 38px; height: 38px; background: rgba(22, 28, 36, 0.9); border: 1px solid #444; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; }
         @media (max-width: 1100px) { 
@@ -221,8 +221,7 @@
             const dpr = window.devicePixelRatio || 1;
             this.cnv.width = r.width * dpr;
             this.cnv.height = r.height * dpr;
-            this.cnv.style.width = r.width + 'px';
-            this.cnv.style.height = r.height + 'px';
+            // .style.width / .height are managed correctly by CSS 100% implicitly
             this.draw();
         }
         draw() {
