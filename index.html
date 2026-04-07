@@ -62,9 +62,10 @@
         .ctrls { position: absolute; bottom: 15px; right: 15px; display: flex; flex-direction: column; gap: 8px; }
         .c-btn { width: 38px; height: 38px; background: rgba(22, 28, 36, 0.9); border: 1px solid #444; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; }
         @media (max-width: 1100px) { 
-            .workspace { display: flex; flex-direction: column; }
-            .viewport { order: 1; flex: 1.5; min-height: 0; width: 100%; }
-            .sidebar { order: 2; flex: 1; min-height: 0; border-top: 1px solid var(--border); border-right: none; width: 100%; overflow: hidden; }
+            .workspace { display: block; position: relative; }
+            .viewport { position: absolute; top: 0; left: 0; right: 0; bottom: 40%; width: auto; flex: none; }
+            .sidebar { position: absolute; left: 0; right: 0; bottom: 0; height: 40%; border-top: 1px solid var(--border); border-right: none; width: auto; flex: none; }
+            .workspace.minimized .viewport { bottom: 0; }
             .workspace.minimized .sidebar { display: none; }
         }
         .sidebar.minimized .table-wrap { display: none; }
@@ -205,24 +206,39 @@
             this.sc = 25; this.ox = 0; this.oy = 0; this.pts = []; this.selected = null;
             this.lines = []; this.curMode = 'select'; this.showLabel = true; this.focusInput = 1;
             this._pendingAutoFit = false;
+            this._lastRw = 0;
+            this._lastRh = 0;
             this.init();
-            new ResizeObserver(() => {
-                this.resize();
-                if (this._pendingAutoFit && this.pts.length) {
-                    this._pendingAutoFit = false;
-                    this.autoFit();
-                }
-            }).observe(this.wrp);
+            new ResizeObserver(() => this.resize()).observe(this.wrp);
         }
         resize() {
             const r = this.wrp.getBoundingClientRect();
             if (r.width === 0 || r.height === 0) return;
             const dpr = window.devicePixelRatio || 1;
+            const changed = (this._lastRw !== r.width || this._lastRh !== r.height);
+            
             this.cnv.width = r.width * dpr;
             this.cnv.height = r.height * dpr;
             this.cnv.style.width = r.width + 'px';
             this.cnv.style.height = r.height + 'px';
-            this.draw();
+            
+            if (changed) {
+                if (this._pendingAutoFit && this.pts.length) {
+                    this._pendingAutoFit = false;
+                    this.autoFit();
+                } else if (this._lastRw && this._lastRh) {
+                    // サイズ変更時に中央位置を維持する（余白ズレ防止）
+                    this.ox += (r.width - this._lastRw) / 2;
+                    this.oy += (r.height - this._lastRh) / 2;
+                    this.draw();
+                } else {
+                    this.draw();
+                }
+            } else {
+                this.draw();
+            }
+            this._lastRw = r.width;
+            this._lastRh = r.height;
         }
         draw() {
             const ctx = this.ctx; ctx.clearRect(0,0,this.cnv.width,this.cnv.height);
