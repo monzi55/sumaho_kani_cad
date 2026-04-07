@@ -36,8 +36,8 @@
         .form-gp { display: flex; align-items: center; gap: 3px; }
         .form-gp label { font-size: 0.55rem; color: var(--text-dim); }
         .form-gp input { background: var(--bg); border: 1px solid #333; color: var(--text); padding: 2px 4px; border-radius: 3px; font-size: 0.7rem; width: 65px; font-family: monospace; }
-        .workspace { flex: 1; display: grid; grid-template-columns: 420px 1fr; overflow: hidden; }
-        .sidebar { border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; background: #0c1117; min-width: 320px; }
+        .workspace { flex: 1; display: grid; grid-template-columns: 420px 1fr; overflow: hidden; min-height: 0; min-width: 0; }
+        .sidebar { border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; background: #0c1117; min-width: 320px; min-height: 0; min-width: 0; }
         .drop-zone { padding: 0.75rem; margin: 0.5rem; border: 1px dashed #444; border-radius: 6px; text-align: center; font-size: 0.7rem; color: var(--text-dim); cursor: pointer; }
         .table-wrap { flex: 1; overflow-y: auto; }
         table { width: 100%; border-collapse: collapse; font-size: 0.65rem; table-layout: fixed; }
@@ -57,12 +57,12 @@
         .t-btn { padding: 8px 12px; font-size: 0.7rem; color: #ccc; border: none; background: transparent; cursor: pointer; text-align: left; border-bottom: 1px solid #333; }
         .t-btn:last-child { border-bottom: none; }
         .t-btn.active { background: var(--primary); color: #000; font-weight: bold; }
-        .viewport { position: relative; background: #050505; flex: 1; transition: flex 0.4s ease; overflow: hidden; }
+        .viewport { position: relative; background: #050505; flex: 1; transition: flex 0.4s ease; overflow: hidden; min-height: 0; min-width: 0; }
         canvas { display: block; touch-action: none; background: #000; position: absolute; top: 0; left: 0; }
         .ctrls { position: absolute; bottom: 15px; right: 15px; display: flex; flex-direction: column; gap: 8px; }
         .c-btn { width: 38px; height: 38px; background: rgba(22, 28, 36, 0.9); border: 1px solid #444; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; }
         @media (max-width: 1100px) { 
-            .workspace { grid-template-columns: 1fr; grid-template-rows: 1.5fr 1fr; transition: grid-template-rows 0.3s ease; }
+            .workspace { grid-template-columns: 1fr; grid-template-rows: 1.5fr 1fr; }
             .viewport { grid-row: 1; }
             .sidebar { grid-row: 2; border-right: none; border-top: 1px solid var(--border); overflow: hidden; }
             .workspace.minimized { grid-template-rows: 1fr 0fr; }
@@ -205,10 +205,19 @@
             this.cnv = document.getElementById('cadCanvas'); this.wrp = document.getElementById('canvasWrapper'); this.ctx = this.cnv.getContext('2d');
             this.sc = 25; this.ox = 0; this.oy = 0; this.pts = []; this.selected = null;
             this.lines = []; this.curMode = 'select'; this.showLabel = true; this.focusInput = 1;
-            this.resize(); this.init(); window.onresize = () => this.resize();
+            this._pendingAutoFit = false;
+            this.init();
+            new ResizeObserver(() => {
+                this.resize();
+                if (this._pendingAutoFit && this.pts.length) {
+                    this._pendingAutoFit = false;
+                    this.autoFit();
+                }
+            }).observe(this.wrp);
         }
         resize() {
             const r = this.wrp.getBoundingClientRect();
+            if (r.width === 0 || r.height === 0) return;
             const dpr = window.devicePixelRatio || 1;
             this.cnv.width = r.width * dpr;
             this.cnv.height = r.height * dpr;
@@ -314,10 +323,12 @@
             vs.forEach(i=>{ x0=Math.min(x0,i.x); x1=Math.max(x1,i.x); y0=Math.min(y0,i.y); y1=Math.max(y1,i.y); });
             const rangeX = x1 - x0 || 1, rangeY = y1 - y0 || 1;
             const pad = 40;
-            const sw = this.cnv.width - pad * 2, sh = this.cnv.height - pad * 2;
+            const rw = this.wrp.clientWidth, rh = this.wrp.clientHeight;
+            const sw = rw - pad * 2, sh = rh - pad * 2;
+            if (sw <= 0 || sh <= 0) return;
             this.sc = Math.min(sw / rangeY, sh / rangeX);
-            this.ox = this.cnv.width/2 - ((y0+y1)/2) * this.sc;
-            this.oy = this.cnv.height/2 + ((x0+x1)/2) * this.sc;
+            this.ox = rw/2 - ((y0+y1)/2) * this.sc;
+            this.oy = rh/2 + ((x0+x1)/2) * this.sc;
             this.draw();
         }
         select(name) { 
@@ -497,12 +508,6 @@
             
             if (m === 'line') {
                 this.setFocusInput(1, true);
-                // 画面サイズ変更に伴いキャンバスをリサイズ
-                this.resize();
-                setTimeout(() => this.resize(), 500);
-            } else {
-                this.resize();
-                setTimeout(() => this.resize(), 500);
             }
         }
         zoomRelative(f) {
@@ -523,8 +528,8 @@
             const res = eng.process(e.target.result); 
             view.pts = res; 
             update(res);
-            view.resize(); // 描画前にサイズ確約
-            setTimeout(() => { view.autoFit(); }, 100); 
+            view._pendingAutoFit = true;
+            setTimeout(() => { view.autoFit(); }, 300); 
         };
         r.readAsText(file, 'shift-jis');
     }
@@ -539,7 +544,6 @@
             }
             b.appendChild(tr);
         });
-        view.resize();
     }
 
     document.getElementById('btnExportSima').onclick = async () => {
