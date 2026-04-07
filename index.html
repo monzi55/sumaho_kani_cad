@@ -10,11 +10,25 @@
             --text-dim: #9aa1a9; --accent: #ff9100; --success: #00c853; --border: #2d333b;
         }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; overflow: hidden; display: flex; flex-direction: column; }
-        header { padding: 0.4rem 0.75rem; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-        h1 { margin: 0; font-size: 0.8rem; color: var(--primary); font-weight: bold; flex: 1; min-width: 120px; }
-        .header-actions { display: flex; gap: 6px; align-items: center; }
-        .btn-hd { background: #333; color: #fff; border: 1px solid #555; padding: 4px 8px; border-radius: 4px; font-size: 0.6rem; cursor: pointer; font-weight: bold; }
-        .btn-hd:active { filter: brightness(0.8); }
+        header { 
+            flex: none;
+            padding: 10px 12px;
+            padding-top: max(10px, env(safe-area-inset-top));
+            background: #1a222a;
+            border-bottom: 2px solid var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            position: sticky;
+            top: 0;
+            z-index: 2000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+        h1 { margin: 0; font-size: 0.85rem; color: var(--primary); font-weight: bold; flex: 1; min-width: 140px; white-space: nowrap; }
+        .header-actions { display: flex; gap: 8px; align-items: center; flex-wrap: nowrap; }
+        .btn-hd { background: #2d333b; color: #fff; border: 1px solid #444; padding: 6px 10px; border-radius: 4px; font-size: 0.65rem; cursor: pointer; font-weight: bold; min-height: 34px; display: flex; align-items: center; }
+        .btn-hd:active { transform: translateY(1px); filter: brightness(1.2); }
         .btn-hd.primary { background: var(--primary); color: #000; border-color: var(--primary); }
         .active-input { border: 2px solid var(--primary) !important; box-shadow: 0 0 8px var(--primary); }
         .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
