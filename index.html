@@ -10,8 +10,12 @@
             --text-dim: #9aa1a9; --accent: #ff9100; --success: #00c853; --border: #2d333b;
         }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; overflow: hidden; display: flex; flex-direction: column; }
-        header { padding: 0.5rem 1rem; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-        h1 { margin: 0; font-size: 0.85rem; color: var(--primary); font-weight: bold; }
+        header { padding: 0.4rem 0.75rem; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        h1 { margin: 0; font-size: 0.8rem; color: var(--primary); font-weight: bold; flex: 1; min-width: 120px; }
+        .header-actions { display: flex; gap: 6px; align-items: center; }
+        .btn-hd { background: #333; color: #fff; border: 1px solid #555; padding: 4px 8px; border-radius: 4px; font-size: 0.6rem; cursor: pointer; font-weight: bold; }
+        .btn-hd:active { filter: brightness(0.8); }
+        .btn-hd.primary { background: var(--primary); color: #000; border-color: var(--primary); }
         .active-input { border: 2px solid var(--primary) !important; box-shadow: 0 0 8px var(--primary); }
         .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
         .config-bar { background: var(--surface); padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
@@ -58,7 +62,14 @@
     </style>
 </head>
 <body>
-<header><h1>スマホ簡易ＣＡＤ <span style="opacity:0.5; font-size: 0.6rem;">Precision v6.0</span></h1></header>
+<header>
+    <h1>スマホ簡易ＣＡＤ <span style="opacity:0.5; font-size: 0.55rem;">v6.0</span></h1>
+    <div class="header-actions">
+        <button class="btn-hd" id="dropZone">APA読み込み</button>
+        <button class="btn-hd primary" id="btnExportSima">SIMA出力</button>
+        <button class="btn-hd primary" id="btnExportDxf">DXF出力</button>
+    </div>
+</header>
 <div class="main-content">
     <div class="config-bar">
         <label style="font-size:0.6rem; color:var(--primary); font-weight:bold;">起点定数:</label>
@@ -69,11 +80,6 @@
     </div>
     <div class="workspace">
         <div class="sidebar">
-            <div style="padding: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
-                <button class="btn-action" id="btnExportSima" style="flex:none; width:80px; padding: 6px; font-size: 0.65rem; background: #333; color: #fff; border: 1px solid #555;">SIMA出力</button>
-                <button class="btn-action" id="btnExportDxf" style="flex:none; width:80px; padding: 6px; font-size: 0.65rem; background: #333; color: #fff; border: 1px solid #555;">DXF出力</button>
-                <div class="drop-zone" id="dropZone" style="flex:1; margin:0; padding: 5px; font-size: 0.6rem;">APAドロップ</div>
-            </div>
             <div class="table-wrap">
                 <table>
                     <colgroup><col width="45"><col width="85"><col width="90"><col width="90"><col width="90"></colgroup>
