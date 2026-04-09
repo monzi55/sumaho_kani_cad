@@ -594,11 +594,11 @@
             if (!useKnownPoints) {
                 eng.reset(parseFloat(document.getElementById('initX').value), parseFloat(document.getElementById('initY').value), parseFloat(document.getElementById('initZ').value), parseFloat(document.getElementById('initAzi').value));
             } else {
-                // 既知点モードの場合はログのみクリアして計算開始（ptsは維持）
-                eng.log = [];
+                // 既知点モードの場合はログを維持して追加計算（ptsも維持）
                 eng.aziBase = parseFloat(document.getElementById('initAzi').value);
                 eng.st = { x: parseFloat(document.getElementById('initX').value), y: parseFloat(document.getElementById('initY').value), z: parseFloat(document.getElementById('initZ').value), name: '', ih: 0 };
             }
+
         }
         const r = new FileReader(); r.onload = (e) => { 
             try {
