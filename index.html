@@ -36,7 +36,7 @@
         .form-gp { display: flex; align-items: center; gap: 3px; }
         .form-gp label { font-size: 0.55rem; color: var(--text-dim); }
         .form-gp input { background: var(--bg); border: 1px solid #333; color: var(--text); padding: 2px 4px; border-radius: 3px; font-size: 0.7rem; width: 65px; font-family: monospace; }
-        .workspace { flex: 1; display: grid; grid-template-columns: 420px 1fr; overflow: hidden; min-height: 0; min-width: 0; }
+        .workspace { position: relative; flex: 1; display: grid; grid-template-columns: 420px 1fr; overflow: hidden; min-height: 0; min-width: 0; }
         .sidebar { border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; background: #0c1117; min-width: 320px; min-height: 0; min-width: 0; }
         .drop-zone { padding: 0.75rem; margin: 0.5rem; border: 1px dashed #444; border-radius: 6px; text-align: center; font-size: 0.7rem; color: var(--text-dim); cursor: pointer; }
         .table-wrap { flex: 1; overflow-y: auto; }
@@ -59,7 +59,7 @@
         .t-btn.active { background: var(--primary); color: #000; font-weight: bold; }
         .viewport { position: relative; background: #050505; flex: 1; overflow: hidden; min-height: 0; min-width: 0; }
         canvas { display: block; touch-action: none; background: #000; position: absolute; top: 0; left: 0; }
-        .ctrls { position: absolute; bottom: 15px; right: 15px; display: flex; flex-direction: column; gap: 8px; }
+        .ctrls { position: absolute; bottom: 15px; right: 15px; display: flex; flex-direction: column; gap: 8px; z-index: 1000; }
         .c-btn { width: 38px; height: 38px; background: rgba(22, 28, 36, 0.9); border: 1px solid #444; border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; }
         @media (max-width: 1100px) { 
             .workspace { display: block; position: relative; }
@@ -101,7 +101,7 @@
         <div class="sidebar">
             <div class="table-wrap">
                 <table>
-                    <colgroup><col width="45"><col width="85"><col width="90"><col width="90"><col width="90"></colgroup>
+                    <colgroup><col width="30"><col width="85"><col width="78"><col width="78"><col width="78"></colgroup>
                     <thead><tr><th></th><th>測点名称</th><th style="text-align:right">X</th><th style="text-align:right">Y</th><th style="text-align:right">Z</th></tr></thead>
                     <tbody id="pTableBody"></tbody>
                 </table>
@@ -146,7 +146,7 @@
                 <div class="c-btn" id="btnUndoLine" style="width: auto; height: auto; border-radius: 6px; padding: 6px 10px; font-size: 0.65rem; font-weight: bold;">戻る</div>
                 <div class="c-btn" id="toggleLabel" style="width: auto; height: auto; border-radius: 6px; padding: 6px 10px; font-size: 0.65rem; font-weight: bold;">点名:表示</div>
             </div>
-            <div class="ctrls">
+            <div class="ctrls" style="bottom: auto; top: 15px;">
                 <div class="c-btn" id="btnZoomIn">+</div>
                 <div class="c-btn" id="btnZoomOut">-</div>
                 <div class="c-btn" id="btnFit">回</div>
