@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>スマホ簡易ＣＡＤ - Pro Elite v6.2</title>
+    <title>スマホ簡易ＣＡＤ - Pro Elite v6.4</title>
     <style>
         :root {
             --primary: #00e5ff; --bg: #0a0e14; --surface: #161c24; --text: #e1e4e8;
@@ -73,7 +73,7 @@
 </head>
 <body>
 <header>
-    <h1>スマホ簡易ＣＡＤ <span style="opacity:0.5; font-size: 0.55rem;">v6.2</span></h1>
+    <h1>スマホ簡易ＣＡＤ <span style="opacity:0.5; font-size: 0.55rem;">v6.4</span></h1>
     <div class="header-actions">
         <button class="btn-hd" id="btnImportSima">SIMA読み込み</button>
         <button class="btn-hd" id="dropZone">APA読み込み</button>
@@ -243,17 +243,27 @@
                         }
                     }
                     const azi = (this.aziBase + ha) % 360, ar = azi * Math.PI/180, vr = va * Math.PI/180;
-                    // PPM補正を適用した斜距離
-                    const correctedSd = sd * (1 + this.ppm * 1e-6);
-                    const hd = correctedSd * Math.sin(vr);
-                    const dz = correctedSd * Math.cos(vr) + this.st.ih - th;
                     
-                    // 内部計算は真数で保持 (1e-12程度の加算で微小な浮動小数点誤差による切り捨てを防止)
-                    const res = { 
-                        x: this.st.x + (hd * Math.cos(ar)), 
-                        y: this.st.y + (hd * Math.sin(ar)), 
-                        z: this.st.z + dz 
-                    };
+                    // 12番目のフィールドに個別補正値(mm)があるかチェック
+                    let individualCorr = 0;
+                    if (p.length >= 13) individualCorr = (parseFloat(p[12]) || 0) * 0.001;
+                    
+                    // PPM補正 + 個別補正を適用した斜距離
+                    const correctedSd = (sd + individualCorr) * (1 + this.ppm * 1e-6);
+                    
+                    // 両差補正（地球曲率・屈折補正）を加味した計算
+                    const K_REF = 0.14, R_EARTH = 6370000;
+                    const hd_raw = correctedSd * Math.sin(vr);
+                    const vd_raw = correctedSd * Math.cos(vr);
+                    
+                    // 水平距離と標高差の算出 (両差補正込)
+                    const hd = hd_raw; // 水平距離自体への補正は一般に投影面で行う
+                    const dz = vd_raw + ((1 - K_REF) * hd_raw * hd_raw) / (2 * R_EARTH) + this.st.ih - th;
+                    
+                    const dx = hd * Math.cos(ar);
+                    const dy = hd * Math.sin(ar);
+                    
+                    const res = { x: this.st.x + dx, y: this.st.y + dy, z: this.st.z + dz };
                     if (!this.pts.has(nm)) { this.pts.set(nm, res); this.log.push({ type: 'OB', name: nm, ...res }); }
                     else this.log.push({ type: 'CHECK', name: nm, ...this.pts.get(nm) });
                 }
