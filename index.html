@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>スマホ簡易ＣＡＤ - Pro Elite v6.1</title>
+    <title>スマホ簡易ＣＡＤ - Pro Elite v6.2</title>
     <style>
         :root {
             --primary: #00e5ff; --bg: #0a0e14; --surface: #161c24; --text: #e1e4e8;
@@ -73,7 +73,7 @@
 </head>
 <body>
 <header>
-    <h1>スマホ簡易ＣＡＤ <span style="opacity:0.5; font-size: 0.55rem;">v6.1</span></h1>
+    <h1>スマホ簡易ＣＡＤ <span style="opacity:0.5; font-size: 0.55rem;">v6.2</span></h1>
     <div class="header-actions">
         <button class="btn-hd" id="btnImportSima">SIMA読み込み</button>
         <button class="btn-hd" id="dropZone">APA読み込み</button>
@@ -162,8 +162,8 @@
     // 小数点第5位を四捨五入する関数（デバッグ用）
     const round4 = (v) => Math.round(v * 10000 + 1e-10) / 10000;
     class SurveyEngine {
-        constructor() { this.pts = new Map(); this.log = []; this.aziBase = 0; this.st = null; }
-        reset(x,y,z,azi) { this.pts.clear(); this.log = []; this.aziBase = azi; this.st = {x, y, z, name:'', ih:0}; }
+        constructor() { this.pts = new Map(); this.log = []; this.aziBase = 0; this.st = null; this.ppm = 0; }
+        reset(x,y,z,azi) { this.pts.clear(); this.log = []; this.aziBase = azi; this.st = {x, y, z, name:'', ih:0}; this.ppm = 0; }
         processSima(text) {
             const lines = text.split(/\n/);
             for (let line of lines) {
@@ -187,6 +187,10 @@
             this.log.push(curSess);
 
             for (let p of lines) {
+                if (p[0] === 'C') {
+                    // CレコードからPPMを取得 (5番目のフィールド)
+                    if (p.length >= 6) this.ppm = parseFloat(p[5]) || 0;
+                }
                 if (p[0] === 'B') { 
                     if (this.log.length > 1) { // 既に開始セッションがある場合は更新
                         curSess = { type: 'SESS', name: `据付 (更新)`, inst: '?', bs: '?' }; 
@@ -239,11 +243,17 @@
                         }
                     }
                     const azi = (this.aziBase + ha) % 360, ar = azi * Math.PI/180, vr = va * Math.PI/180;
-                    const hd = sd * Math.sin(vr);
-                    const dz = sd * Math.cos(vr) + this.st.ih - th;
+                    // PPM補正を適用した斜距離
+                    const correctedSd = sd * (1 + this.ppm * 1e-6);
+                    const hd = correctedSd * Math.sin(vr);
+                    const dz = correctedSd * Math.cos(vr) + this.st.ih - th;
                     
-                    // 内部計算は真数（フル精度）で保持
-                    const res = { x: this.st.x + hd*Math.cos(ar), y: this.st.y + hd*Math.sin(ar), z: this.st.z + dz };
+                    // 内部計算は真数で保持 (1e-12程度の加算で微小な浮動小数点誤差による切り捨てを防止)
+                    const res = { 
+                        x: this.st.x + (hd * Math.cos(ar)), 
+                        y: this.st.y + (hd * Math.sin(ar)), 
+                        z: this.st.z + dz 
+                    };
                     if (!this.pts.has(nm)) { this.pts.set(nm, res); this.log.push({ type: 'OB', name: nm, ...res }); }
                     else this.log.push({ type: 'CHECK', name: nm, ...this.pts.get(nm) });
                 }
