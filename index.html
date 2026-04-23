@@ -157,16 +157,17 @@
 <input type="file" id="fileInput" style="display: none;">
 <script>
     const parseDMS = (s) => { if (!s) return 0.0; const v = parseFloat(s); const d = Math.floor(v + 1e-7), ms = (v - d) * 100, min = Math.floor(ms + 1e-4), sec = (ms - min) * 100; return d + (min / 60) + (sec / 3600); };
+    const round3 = (v) => Math.round(v * 1000 + 1e-9) / 1000;
     class SurveyEngine {
         constructor() { this.pts = new Map(); this.log = []; this.aziBase = 0; this.st = null; }
-        reset(x,y,z,azi) { this.pts.clear(); this.log = []; this.aziBase = azi; this.st = {x,y,z,name:'',ih:0}; }
+        reset(x,y,z,azi) { this.pts.clear(); this.log = []; this.aziBase = azi; this.st = {x: round3(x), y: round3(y), z: round3(z), name:'', ih:0}; }
         processSima(text) {
             const lines = text.split(/\n/);
             for (let line of lines) {
                 const p = line.trim().split(',').map(s => s.trim());
                 if (p[0] === 'A00') continue;
                 if (p[0] === 'A01') {
-                    const nm = p[2], x = parseFloat(p[3]), y = parseFloat(p[4]), z = parseFloat(p[5]) || 0;
+                    const nm = p[2], x = round3(parseFloat(p[3])), y = round3(parseFloat(p[4])), z = round3(parseFloat(p[5]) || 0);
                     if (nm && !isNaN(x) && !isNaN(y)) {
                         this.pts.set(nm, { x, y, z });
                         this.log.push({ type: 'OB', name: nm, x, y, z });
@@ -235,8 +236,13 @@
                         }
                     }
                     const azi = (this.aziBase + ha) % 360, ar = azi * Math.PI/180, vr = va * Math.PI/180;
-                    const hd = sd * Math.sin(vr), dz = sd * Math.cos(vr) + this.st.ih - th;
-                    const res = { x: this.st.x + hd*Math.cos(ar), y: this.st.y + hd*Math.sin(ar), z: this.st.z + dz };
+                    const hd = sd * Math.sin(vr);
+                    // 増分（dX, dY, dZ）を測量計算の慣習に従いミリ単位で丸める
+                    const dx = round3(hd * Math.cos(ar));
+                    const dy = round3(hd * Math.sin(ar));
+                    const dZ = round3(sd * Math.cos(vr) + this.st.ih - th);
+                    
+                    const res = { x: round3(this.st.x + dx), y: round3(this.st.y + dy), z: round3(this.st.z + dZ) };
                     if (!this.pts.has(nm)) { this.pts.set(nm, res); this.log.push({ type: 'OB', name: nm, ...res }); }
                     else this.log.push({ type: 'CHECK', name: nm, ...this.pts.get(nm) });
                 }
@@ -601,7 +607,7 @@
             } else {
                 // 既知点モードの場合はログを維持して追加計算（ptsも維持）
                 eng.aziBase = parseFloat(document.getElementById('initAzi').value);
-                eng.st = { x: parseFloat(document.getElementById('initX').value), y: parseFloat(document.getElementById('initY').value), z: parseFloat(document.getElementById('initZ').value), name: '', ih: 0 };
+                eng.st = { x: round3(parseFloat(document.getElementById('initX').value)), y: round3(parseFloat(document.getElementById('initY').value)), z: round3(parseFloat(document.getElementById('initZ').value)), name: '', ih: 0 };
             }
 
         }
