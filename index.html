@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>スマホ簡易ＣＡＤ - Pro Elite v6</title>
+    <title>スマホ簡易ＣＡＤ - Pro Elite v6.1</title>
     <style>
         :root {
             --primary: #00e5ff; --bg: #0a0e14; --surface: #161c24; --text: #e1e4e8;
@@ -73,7 +73,7 @@
 </head>
 <body>
 <header>
-    <h1>スマホ簡易ＣＡＤ <span style="opacity:0.5; font-size: 0.55rem;">v6.0</span></h1>
+    <h1>スマホ簡易ＣＡＤ <span style="opacity:0.5; font-size: 0.55rem;">v6.1</span></h1>
     <div class="header-actions">
         <button class="btn-hd" id="btnImportSima">SIMA読み込み</button>
         <button class="btn-hd" id="dropZone">APA読み込み</button>
@@ -157,8 +157,10 @@
 <input type="file" id="fileInput" style="display: none;">
 <script>
     const parseDMS = (s) => { if (!s) return 0.0; const v = parseFloat(s); const d = Math.floor(v + 1e-7), ms = (v - d) * 100, min = Math.floor(ms + 1e-4), sec = (ms - min) * 100; return d + (min / 60) + (sec / 3600); };
-    // 小数点第4位を四捨五入する関数（浮動小数点の極小誤差を補正して丸める）
+    // 小数点第4位を四捨五入する関数
     const round3 = (v) => Math.round(v * 1000 + 1e-9) / 1000;
+    // 小数点第5位を四捨五入する関数（デバッグ用）
+    const round4 = (v) => Math.round(v * 10000 + 1e-10) / 10000;
     class SurveyEngine {
         constructor() { this.pts = new Map(); this.log = []; this.aziBase = 0; this.st = null; }
         reset(x,y,z,azi) { this.pts.clear(); this.log = []; this.aziBase = azi; this.st = {x, y, z, name:'', ih:0}; }
@@ -643,9 +645,9 @@
                     <td style="text-align:center;"><input type="checkbox" class="pt-check" data-name="${i.name}" ${i.hidden ? '' : 'checked'}></td>
                     <td>${(i.type==='ST')?'<span class="type-st">据付</span>':''}</td>
                     <td class="st-name">${i.name}</td>
-                    <td style="text-align:right">${round3(i.x).toFixed(3)}</td>
-                    <td style="text-align:right">${round3(i.y).toFixed(3)}</td>
-                    <td style="text-align:right">${round3(i.z).toFixed(3)}</td>`;
+                    <td style="text-align:right">${round4(i.x).toFixed(4)}</td>
+                    <td style="text-align:right">${round4(i.y).toFixed(4)}</td>
+                    <td style="text-align:right">${round4(i.z).toFixed(4)}</td>`;
             }
             b.appendChild(tr);
         });
